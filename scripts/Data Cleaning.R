@@ -33,6 +33,15 @@ data <- data %>%
 
 # Outcome variable manipulation
 
+# Contact date into date and time
+data <- data %>%
+  mutate(date = substr(contact_date, 1, 10),
+         time = substr(contact_date, 12, 19)) %>% 
+  mutate(time = ifelse(time == "", NA, time)) %>%
+  select(date, time, everything())
+
+# data <- separate(data, contact_date, into = c("date", "time"), sep = " ")
+
 
 
 
