@@ -4,6 +4,8 @@ library(readxl)
 library(gridExtra)
 library(sf)
 library(tidycensus)
+library(ggspatial)
+library(prettymapr)
 
 
 
@@ -122,11 +124,14 @@ sex <- data %>%
 
 
 
+
+
+
 ## Zip Codes ======
-#create boston zip codes dataset using data from 2015-2019 5-year ACS
+# Create boston zip codes dataset using data from 2015-2019 5-year ACS
 acs_vars <- c(total_pop = "B01003_001E")
 
-#create boston zip codes dataset using data from 2015-2019 5-year ACS
+# Create boston zip codes dataset using data from 2015-2019 5-year ACS
 boston_zips <- get_acs(geography = "zcta",
                        variables = acs_vars,
                        state = "MA",
@@ -135,24 +140,81 @@ boston_zips <- get_acs(geography = "zcta",
                        year = 2019) %>% 
   st_transform("WGS84")
 
-#Check it works 
-ggplot(data = boston_zips) +
-  geom_sf() 
-
+# Merge data
 fio_zips <- merge(data, boston_zips, by.x = "zip", by.y = "GEOID", all.x = TRUE)
-
 
 # Create summary table of FIO incidents by zip code
 fio_summary <- fio_zips %>%
-  group_by(zip) %>%
-  summarize(total_fios = n(),
-            geometry = geometry)  # Count the number of FIO incidents per zip code
+  group_by(geometry, zip) %>%
+  summarize(total_fios = n()) %>% 
+  st_as_sf() # Count the number of FIO incidents per zip code
 
 # Plot the map shading by the number of FIO incidents per zip code
-ggplot(data = fio_summary, aes(fill = total_fios)) +
-  geom_sf(data = fio_zips) +
+mass_fio_map <- ggplot() +
+  geom_sf(data = boston_zips, color = "grey", fill = NA) +  # Plot all zip code boundaries
+  geom_sf(data = fio_summary, aes(fill = total_fios), color = "black") +  # Overlay FIO incidents
   scale_fill_gradient(name = "FIO Count", low = "lightblue", high = "darkblue") +
-  labs(title = "FIO Incidents by Zip Code")
+  labs(title = "FIO Incidents by Zip Code", fill = "FIO Count") +
+  theme_minimal()
+
+# Filter the fio_summary dataset for zip codes with at least 2 FIO incidents
+filtered_fio_summary <- fio_summary %>%
+  filter(total_fios >= 4)
+
+# Plain map, blue zips
+fio_zip_map <- ggplot() +
+  geom_sf(data = filtered_fio_summary, aes(fill = total_fios), color = "black") +  # Overlay FIO incidents
+  # geom_sf(data = boston_zips, color = "grey", fill = NA) +  # Plot filtered zip code boundaries for Boston area
+  scale_fill_gradient(name = "FIO Count", low = "lightblue", high = "darkblue") +
+  labs(title = "FIO Incidents by Zip Code (Boston Area)", fill = "FIO Count") +
+  theme_minimal()
+
+# Map with background
+fio_zip_map_background <- ggplot(data = filtered_fio_summary) +
+  annotation_map_tile(zoomin = 0,
+                      type = "cartolight") +
+  geom_sf(data = filtered_fio_summary, aes(fill = total_fios, alpha = 0.9), color = "black") +  # Overlay FIO incidents with transparency
+  scale_fill_gradient(name = "FIO Count", low = "lightyellow", high = "darkred") +  # Change color gradient
+  labs(title = "FIO Incidents by Zip Code (Boston Area)", fill = "FIO Count") +
+  guides(alpha = "none") +
+  theme_minimal()
+
+# Get the top 5-10 zip codes with the highest FIO counts
+top_zip <- filtered_fio_summary %>%
+  arrange(desc(total_fios)) %>%
+  slice(1:10)
+
+# Get the centroids of the top 5-10 zip codes
+top_zip_centroids <- st_centroid(top_zip)
+
+# Extract x and y coordinates from centroids
+top_zip_centroids <- cbind(top_zip_centroids, st_coordinates(top_zip_centroids))
+
+# Labeled Map
+fio_zip_label_map <- ggplot(data = filtered_fio_summary) +
+  annotation_map_tile(zoomin = 0,
+                      type = "cartolight") +
+  geom_sf(data = filtered_fio_summary, aes(fill = total_fios), color = "black", alpha = 0.5) +  # Overlay FIO incidents with transparency
+  scale_fill_gradient(name = "FIO Count", low = "lightyellow", high = "darkred") +  # Change color gradient
+  labs(title = "FIO Incidents by Zip Code (Boston Area)", fill = "FIO Count") +
+  geom_text(data = top_zip_centroids, aes(label = zip, x = X, y = Y), size = 1, color = "white", check_overlap = TRUE) +  # Add labels for top zip codes
+  guides(alpha = "none") +  # Remove the alpha legend
+  theme_minimal()
+
+# Exporting mass_fio_map
+ggsave(filename = "images/mass_fio_map.png", plot = mass_fio_map, width = 8, height = 6, dpi = 300, bg = "white")
+
+# Exporting fio_zip_map
+ggsave(filename = "images/fio_zip_map.png", plot = fio_zip_map, width = 8, height = 6, dpi = 300, bg = "white")
+
+# Exporting fio_zip_map_background
+ggsave(filename = "images/fio_zip_map_background.png", plot = fio_zip_map_background, width = 8, height = 6, dpi = 300, bg = "white")
+
+# Exporting fio_zip_label_map
+ggsave(filename = "images/fio_zip_label_map.png", plot = fio_zip_label_map, width = 8, height = 6, dpi = 300, bg = "white")
+
+
+
 
 
 
