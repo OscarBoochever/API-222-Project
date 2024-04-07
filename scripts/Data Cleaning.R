@@ -6,6 +6,7 @@ library(sf)
 library(tidycensus)
 library(ggspatial)
 library(prettymapr)
+library(lubridate)
 
 
 
@@ -203,13 +204,10 @@ fio_zip_label_map <- ggplot(data = filtered_fio_summary) +
 
 # Exporting mass_fio_map
 ggsave(filename = "images/mass_fio_map.png", plot = mass_fio_map, width = 8, height = 6, dpi = 300, bg = "white")
-
 # Exporting fio_zip_map
 ggsave(filename = "images/fio_zip_map.png", plot = fio_zip_map, width = 8, height = 6, dpi = 300, bg = "white")
-
 # Exporting fio_zip_map_background
 ggsave(filename = "images/fio_zip_map_background.png", plot = fio_zip_map_background, width = 8, height = 6, dpi = 300, bg = "white")
-
 # Exporting fio_zip_label_map
 ggsave(filename = "images/fio_zip_label_map.png", plot = fio_zip_label_map, width = 8, height = 6, dpi = 300, bg = "white")
 
@@ -219,13 +217,133 @@ ggsave(filename = "images/fio_zip_label_map.png", plot = fio_zip_label_map, widt
 
 
 ## Date and time ======
+# Aggregate data by day
+data_daily <- data %>%
+  group_by(date) %>%
+  summarize(total_incidents = n())
+# 
+# # Plot of FIOs by day as a column chart
+# ggplot(data_daily, aes(x = date, y = total_incidents)) +
+#   geom_col() +
+#   labs(title = "FIO Incidents by Day (Column Chart)",
+#        x = "Date",
+#        y = "Number of FIO Incidents") +
+#   theme_minimal()
+
+# Plot of FIOs by day as a line chart
+fio_day_line <- ggplot(data_daily, aes(x = date, y = total_incidents)) +
+  geom_line() +
+  labs(title = "FIO Incidents by Day (Line Chart)",
+       x = "Date",
+       y = "Number of FIO Incidents") +
+  theme_minimal()
+
+
+# Convert date column to Date format
+data$date <- as.Date(data$date)
+
+# Round down each date to the nearest week start
+data <- mutate(data, week_start = floor_date(date, unit = "week"))
+
+# Aggregate data by week start
+data_weekly <- data %>%
+  group_by(week_start) %>%
+  summarize(total_incidents = n())
+
+# Plot of FIOs by week
+fio_week_line <- ggplot(data_weekly, aes(x = week_start, y = total_incidents)) +
+  geom_line() +
+  labs(title = "FIO Incidents by Week",
+       x = "Week",
+       y = "Number of FIO Incidents") +
+  theme_minimal()
+
+# Round down each date to the nearest month start
+data <- mutate(data, month_start = floor_date(date, unit = "month"))
+
+# Aggregate data by month start
+data_monthly <- data %>%
+  group_by(month_start) %>%
+  summarize(total_incidents = n())
+
+# Filter out the first month's data
+data_monthly_filtered <- data_monthly %>%
+  filter(month_start > min(month_start))
+
+# Plot of FIOs by month with y-axis starting from 0 and quarterly minor ticks on x-axis
+fio_month_col <- ggplot(data_monthly_filtered, aes(x = month_start, y = total_incidents)) +
+  geom_col() +
+  labs(title = "FIO Incidents by Month",
+       x = "Month",
+       y = "Number of FIO Incidents") +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.05))) +  # Adjust y-axis range to start from 0
+  scale_x_date(date_breaks = "3 months", date_labels = "%b %Y") +  # Set quarterly minor ticks on x-axis
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate x-axis labels
+
+
+# Aggregate data by quarter
+data_quarterly <- data %>%
+  mutate(quarter = quarter(date),
+         year = year(date),
+         qy = year + quarter/4) %>%
+  group_by(quarter, year, qy) %>%
+  filter(qy > 2020) %>% 
+  summarize(total_incidents = n())
+
+# Plot of FIOs by quarter
+fio_quarter_col <- ggplot(data_quarterly, aes(x = qy, y = total_incidents)) +
+  geom_col() +
+  labs(title = "FIO Incidents by Quarter",
+       x = "Quarter",
+       y = "Number of FIO Incidents") +
+  scale_x_continuous(breaks = data_quarterly$qy,  # Set breaks to every quarter
+                     labels = paste("Q", data_quarterly$quarter, "-", data_quarterly$year, sep = ""),  # Set labels to quarters and years
+                     minor_breaks = NULL) +  # Remove minor ticks
+  theme_minimal()
+
+
+# Filter out NA values in the 'time' column
+data_time_filtered <- data %>% 
+  filter(!is.na(time))
+
+# Convert 'time' column to POSIXct format with specified format
+data_time_filtered$time <- as.POSIXct(data_time_filtered$time, format = "%H:%M:%S")
+
+# Extract hour from the 'time' column
+data_time_filtered <- data_time_filtered %>%
+  mutate(hour = lubridate::hour(time))
+
+# Plot of FIOs by hour
+fio_hour_col <- ggplot(data_time_filtered, aes(x = hour)) +
+  geom_bar(fill = "lightblue") +
+  labs(title = "FIO Incidents by Hour",
+       x = "Hour of the Day",
+       y = "Number of FIO Incidents") +
+  scale_x_continuous(breaks = seq(0, 23, by = 3)) +  # Set breaks every 3 hours
+  theme_minimal()
+
+
+# Plot of FIOs by time
+ggplot(data_time_filtered, aes(x = time)) +
+  geom_bar(fill = "lightblue") +
+  labs(title = "FIO Incidents by Time",
+       x = "Time",
+       y = "Number of FIO Incidents") +
+  theme_minimal()
+
+
+# Save the named plots as files into the images folder with a white background
+ggsave("images/fio_day_line.png", fio_day_line, bg = "white")
+ggsave("images/fio_week_line.png", fio_week_line, bg = "white")
+ggsave("images/fio_month_col.png", fio_month_col, bg = "white")
+ggsave("images/fio_quarter_col.png", fio_quarter_col, bg = "white")
+ggsave("images/fio_hour_col.png", fio_hour_col, bg = "white")
 
 
 
-# ## Deceased ======
-# deceased <- data %>% 
-#   group_by(deceased) %>% 
-#   summarise(count = n()) # this is almost entirely 0s so I think we should remove
+
+
 
 
 ## Circumstance & Basis ======
