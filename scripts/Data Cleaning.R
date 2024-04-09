@@ -51,9 +51,6 @@ data <- data %>%
 
 
 
-# Outcome variable manipulation ####################
-
-
 
 # Contact date into date and time ####################
 data <- data %>%
@@ -74,6 +71,13 @@ data <- data %>%
          circumstance = ifelse(circumstance == "NULL", NA, circumstance))
 
 
+
+# Outcome variable manipulation ####################
+data <- data %>% 
+  filter(!is.na(was_frisked)) %>% 
+  select(!contact_reason)
+
+write_csv(data, "FIO_clean_removed_frisked_NAs.csv")
 
 # Exploratory Analysis ####################
 ## FIOs and Frisk Rates by Race ======
