@@ -49,7 +49,12 @@ data <- data %>%
 
 # how do we want to deal with NULLs and NAs and imputation? eg., was_frisked of NULL or NA -- do we assume this is a 0 or 1, or drop these?
 
-
+# DROP ALL NULLS/NAs
+#race NA as Not Reported
+#impute age and another column to impute age
+# key situations binary 1 or 0 if there is one listed
+# drop zip code NAs
+# zip code label map colored by frisk rate instead of total FIOs
 
 
 # Contact date into date and time ####################
@@ -205,6 +210,8 @@ fio_zip_label_map <- ggplot(data = filtered_fio_summary) +
   geom_text(data = top_zip_centroids, aes(label = zip, x = X, y = Y), size = 1, color = "white", check_overlap = TRUE) +  # Add labels for top zip codes
   guides(alpha = "none") +  # Remove the alpha legend
   theme_minimal()
+
+# COLOR BY PROPORTION FRISKED
 
 # Exporting mass_fio_map
 ggsave(filename = "images/mass_fio_map.png", plot = mass_fio_map, width = 8, height = 6, dpi = 300, bg = "white")
@@ -380,3 +387,9 @@ race_circumstance <- data %>%
   summarise(count = n(),
             frisk_rate = round(mean(as.numeric(was_frisked), na.rm = T), 3)
   )
+
+
+data %>% 
+  group_by(key_situations) %>% 
+  summarise(n = n()) %>% 
+  arrange(desc(n))
