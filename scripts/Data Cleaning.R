@@ -264,7 +264,7 @@ ggsave(filename = "images/fio_zip_map.png", plot = fio_zip_map, width = 8, heigh
 ggsave(filename = "images/fio_zip_map_background.png", plot = fio_zip_map_background, width = 8, height = 6, dpi = 300, bg = "white")
 # Exporting fio_zip_label_map
 ggsave(filename = "images/fio_zip_label_map.png", plot = fio_zip_label_map, width = 8, height = 6, dpi = 300, bg = "white")
-ggsave(filename = "images/frisk_rate_zip_label_map.png", plot = fio_zip_label_map, width = 8, height = 6, dpi = 300, bg = "white")
+ggsave(filename = "images/frisk_rate_zip_label_map.png", plot = frisk_zip_label_map, width = 8, height = 6, dpi = 300, bg = "white")
 
 
 
