@@ -156,7 +156,8 @@ fio_zips <- merge(data, boston_zips, by.x = "zip", by.y = "GEOID", all.x = TRUE)
 # Create summary table of FIO incidents by zip code
 fio_summary <- fio_zips %>%
   group_by(geometry, zip) %>%
-  summarize(total_fios = n()) %>% 
+  summarize(total_fios = n(),
+            frisk_rate = sum(as.numeric(was_frisked))/total_fios) %>% 
   st_as_sf() # Count the number of FIO incidents per zip code
 
 # Plot the map shading by the number of FIO incidents per zip code
@@ -211,6 +212,48 @@ fio_zip_label_map <- ggplot(data = filtered_fio_summary) +
   guides(alpha = "none") +  # Remove the alpha legend
   theme_minimal()
 
+# Labeled Map Colored by Frisk Rate
+frisk_zip_label_map <- ggplot(data = filtered_fio_summary) +
+  annotation_map_tile(zoomin = 0,
+                      type = "cartolight") +
+  geom_sf(data = filtered_fio_summary, aes(fill = frisk_rate), color = "black", alpha = 0.8) +  # Overlay FIO incidents with transparency
+  scale_fill_gradient(name = "Frisk Rate", low = "white", high = "darkred") +  # Change color gradient
+  labs(title = "Frisk Rates by Zip Code (Boston Area)", fill = "FIO Count") +
+  geom_text(data = top_zip_centroids, aes(label = zip, x = X, y = Y), size = 1, color = "white", check_overlap = TRUE) +  # Add labels for top zip codes
+  guides(alpha = "none") +  # Remove the alpha legend
+  theme_minimal()
+
+# Define the breaks and colors for the gradient
+breaks <- c(0, 0.57, 1)
+colors <- c("white", "purple", "black")
+
+# Create the plot with the custom gradient scale
+frisk_zip_label_map <- ggplot(data = filtered_fio_summary) +
+  annotation_map_tile(zoomin = 0,
+                      type = "cartolight") +
+  geom_sf(data = filtered_fio_summary, aes(fill = frisk_rate), color = "black", alpha = 1) +
+  scale_fill_gradientn(name = "Frisk Rate", colors = colors, values = scales::rescale(breaks), breaks = breaks) +
+  labs(title = "Frisk Rates by Zip Code (Boston Area)", fill = "FIO Count") +
+  geom_text(data = top_zip_centroids, aes(label = zip, x = X, y = Y), size = 1, color = "white", check_overlap = TRUE) +
+  guides(alpha = "none") +
+  theme_minimal()
+
+# Define the breaks and colors for the gradient
+breaks <- c(0, 0.16, 0.58, 1)
+colors <- c("white", "lightcyan", "navy", "black")
+
+# Create the plot with the custom gradient scale
+frisk_zip_label_map <- ggplot(data = filtered_fio_summary) +
+  annotation_map_tile(zoomin = 0,
+                      type = "cartolight") +
+  geom_sf(data = filtered_fio_summary, aes(fill = frisk_rate), color = "black", alpha = 0.8) +
+  scale_fill_gradientn(name = "Frisk Rate", colors = colors, values = scales::rescale(breaks), breaks = breaks) +
+  labs(title = "Frisk Rates by Zip Code (Boston Area)", fill = "FIO Count") +
+  geom_text(data = top_zip_centroids, aes(label = zip, x = X, y = Y), size = 1, color = "white", check_overlap = TRUE) +
+  guides(alpha = "none") +
+  theme_minimal()
+
+frisk_zip_label_map
 # COLOR BY PROPORTION FRISKED
 
 # Exporting mass_fio_map
@@ -221,6 +264,8 @@ ggsave(filename = "images/fio_zip_map.png", plot = fio_zip_map, width = 8, heigh
 ggsave(filename = "images/fio_zip_map_background.png", plot = fio_zip_map_background, width = 8, height = 6, dpi = 300, bg = "white")
 # Exporting fio_zip_label_map
 ggsave(filename = "images/fio_zip_label_map.png", plot = fio_zip_label_map, width = 8, height = 6, dpi = 300, bg = "white")
+ggsave(filename = "images/frisk_rate_zip_label_map.png", plot = fio_zip_label_map, width = 8, height = 6, dpi = 300, bg = "white")
+
 
 
 
